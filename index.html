@@ -8,31 +8,13 @@
         :root { --primary-color: #008f7a; --accent-color: #e74c3c; }
         body { font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; background: #f8f9fa; margin: 0; padding: 20px; color: #333; }
         .container { max-width: 420px; width: 100%; text-align: center; background: white; padding: 30px; border-radius: 28px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); }
-        
-        /* 次数显示 */
         .status-bar { margin-bottom: 20px; font-weight: bold; font-size: 1.1em; color: #555; }
         #chance-count { color: var(--accent-color); font-size: 1.2em; margin: 0 5px; }
-
-        /* 转盘区域 */
         .wheel-wrapper { position: relative; width: 340px; height: 340px; margin: 30px auto; }
         #canvas { width: 100%; height: 100%; transition: transform 6s cubic-bezier(0.15, 0, 0, 1); transform: rotate(-90deg); }
-        
-        /* 向下指针 */
-        .pointer-box { 
-            position: absolute; top: -30px; left: 50%; transform: translateX(-50%); 
-            z-index: 100; width: 46px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); 
-        }
-
-        /* 按钮 */
-        .spin-btn { 
-            background: linear-gradient(135deg, #00c9a7, var(--primary-color)); color: white; border: none; 
-            padding: 16px 60px; font-size: 20px; font-weight: bold; border-radius: 50px; 
-            cursor: pointer; transition: all 0.3s; box-shadow: 0 6px 20px rgba(0, 143, 122, 0.3);
-        }
-        .spin-btn:disabled { background: #ccc; box-shadow: none; transform: scale(1); cursor: not-allowed; }
-        .spin-btn:active { transform: scale(0.95); }
-
-        /* 奖品明细表 */
+        .pointer-box { position: absolute; top: -30px; left: 50%; transform: translateX(-50%); z-index: 100; width: 46px; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); }
+        .spin-btn { background: linear-gradient(135deg, #00c9a7, var(--primary-color)); color: white; border: none; padding: 16px 60px; font-size: 20px; font-weight: bold; border-radius: 50px; cursor: pointer; transition: all 0.3s; box-shadow: 0 6px 20px rgba(0, 143, 122, 0.3); }
+        .spin-btn:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; }
         .prize-list { text-align: left; margin-top: 30px; padding: 20px; background: #fcfcfc; border-radius: 15px; border: 1px solid #eee; font-size: 13px; line-height: 1.8; }
         .prize-item b { display: inline-block; width: 55px; }
     </style>
@@ -71,29 +53,25 @@
     const btn = document.getElementById('spin-btn');
     const chanceDisplay = document.getElementById('chance-count');
 
-    // 1. 奖池配置 (对应你的库存)
+    // 🏆 这里填入你的 Cloudflare Worker 网址
+    const BACKEND_URL = 'https://jn-lottery-backend.3038156424.workers.dev'; 
+
     const prizeConfig = [
-        { name: "特等奖", color: "#ee5253", stock: 15,  weight: 15,  startDeg: 0,   endDeg: 10 },
-        { name: "一等奖", color: "#f39c12", stock: 100, weight: 100, startDeg: 10,  endDeg: 65 },
-        { name: "二等奖", color: "#aadd44", stock: 200, weight: 200, startDeg: 65,  endDeg: 180 },
-        { name: "三等奖", color: "#1abc9c", stock: 300, weight: 300, startDeg: 180, endDeg: 360 }
+        { name: "特等奖", color: "#ee5253", startDeg: 0,   endDeg: 10 },
+        { name: "一等奖", color: "#f39c12", startDeg: 10,  endDeg: 65 },
+        { name: "二等奖", color: "#aadd44", startDeg: 65,  endDeg: 180 },
+        { name: "三等奖", color: "#1abc9c", startDeg: 180, endDeg: 360 }
     ];
 
     let currentRotation = 0;
-    let hasPlayed = localStorage.getItem('lottery_played_v7') === 'true';
+    let hasPlayed = localStorage.getItem('lottery_done_v8') === 'true';
 
-    // 初始化检查
     if (hasPlayed) {
-        setFinishedState();
-    }
-
-    function setFinishedState() {
         btn.disabled = true;
         btn.innerText = "已参加活动";
         chanceDisplay.innerText = "0";
     }
 
-    // 绘制转盘
     function draw() {
         ctx.textAlign = "center";
         ctx.font = "bold 17px sans-serif";
@@ -105,7 +83,6 @@
             ctx.moveTo(200, 200);
             ctx.arc(200, 200, 200, s, e);
             ctx.fill();
-            
             ctx.save();
             ctx.fillStyle = "#fff";
             ctx.translate(200, 200);
@@ -115,48 +92,51 @@
         });
     }
 
-    function handleSpin() {
+    // 核心请求函数
+    async function handleSpin() {
         if (hasPlayed) return;
 
-        // 立即改变状态（满足需求1）
-        hasPlayed = true;
-        localStorage.setItem('lottery_played_v7', 'true');
+        // 1. 立即锁定UI，防止连点
         btn.disabled = true;
-        chanceDisplay.innerText = "0";
+        btn.innerText = "抽奖中...";
 
-        // 抽奖逻辑
-        let totalWeight = prizeConfig.reduce((acc, p) => acc + p.weight, 0);
-        let random = Math.random() * totalWeight;
-        let winIdx = 0;
-        let currentWeight = 0;
-        for (let i = 0; i < prizeConfig.length; i++) {
-            currentWeight += prizeConfig[i].weight;
-            if (random <= currentWeight) {
-                winIdx = i;
-                break;
+        try {
+            // 2. 向后端请求结果
+            const response = await fetch(BACKEND_URL, { method: 'POST' });
+            const data = await response.json();
+
+            if (data.error) {
+                alert("奖品已领完，谢谢参与！");
+                btn.innerText = "已领完";
+                return;
             }
+
+            // 3. 标记已抽奖并更新次数
+            hasPlayed = true;
+            localStorage.setItem('lottery_done_v8', 'true');
+            chanceDisplay.innerText = "0";
+
+            // 4. 计算旋转动画
+            const winPrize = prizeConfig.find(p => p.name === data.prize);
+            const midDeg = (winPrize.startDeg + winPrize.endDeg) / 2;
+            const targetCssDeg = (360 - midDeg) - 90;
+            
+            const finalRotation = currentRotation + 3600 + targetCssDeg;
+            currentRotation = finalRotation;
+            canvas.style.transform = `rotate(${finalRotation}deg)`;
+
+            // 5. 结果弹窗
+            setTimeout(() => {
+                alert(`🎉 恭喜！你抽中了【${data.prize}】\n请凭此界面截图去兑奖处领取。`);
+                btn.innerText = "已完成抽奖";
+            }, 6500);
+
+        } catch (error) {
+            console.error(error);
+            alert("网络连接失败，请刷新重试");
+            btn.disabled = false;
+            btn.innerText = "重新抽奖";
         }
-
-        const prize = prizeConfig[winIdx];
-        const midDeg = (prize.startDeg + prize.endDeg) / 2;
-        const targetCssDeg = (360 - midDeg) - 90;
-        
-        // 增加圈数，确保旋转效果
-        const finalRotation = currentRotation + 3600 + targetCssDeg;
-        currentRotation = finalRotation;
-        canvas.style.transform = `rotate(${finalRotation}deg)`;
-
-        setTimeout(() => {
-            alert(`🎉 恭喜！你抽中了【${prize.name}】\n奖品包含：${getPrizeDetail(prize.name)}\n请凭此界面截图去兑奖处领取。`);
-            btn.innerText = "已完成抽奖";
-        }, 6500);
-    }
-
-    function getPrizeDetail(name) {
-        if(name === "特等奖") return "暨南文创";
-        if(name === "一等奖") return "电脑包或雨伞";
-        if(name === "二等奖") return "鼠标垫、小风扇或笔袋";
-        return "束口袋、运动毛巾、签字笔或小礼包";
     }
 
     draw();
