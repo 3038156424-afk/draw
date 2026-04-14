@@ -5,54 +5,62 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>暨南文创 · 幸运转盘</title>
     <style>
-        body { font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; background: #fafafa; margin: 0; padding: 20px; }
-        .container { max-width: 420px; width: 100%; text-align: center; background: white; padding: 30px; border-radius: 28px; box-shadow: 0 15px 40px rgba(0,0,0,0.05); border: 1px solid #eee; }
+        body { font-family: -apple-system, sans-serif; display: flex; flex-direction: column; align-items: center; background: #fdfdfd; margin: 0; padding: 20px; }
+        .container { max-width: 420px; width: 100%; text-align: center; background: white; padding: 30px; border-radius: 28px; box-shadow: 0 15px 40px rgba(0,0,0,0.05); }
         
-        /* 转盘样式 - 核心升级 */
-        .wheel-wrapper { position: relative; width: 360px; height: 360px; margin: 25px auto; }
-        #canvas { width: 100%; height: 100%; transition: transform 6.5s cubic-bezier(0.1, 0, 0, 1); filter: drop-shadow(0 5px 15px rgba(0,0,0,0.08)); transform: rotate(-90deg); /* 修正：让Canvas初始3点钟变为12点钟对齐指针 */ }
-        .pointer { 
-            position: absolute; top: 0; left: 50%; width: 50px; height: 60px; 
-            margin-left: -25px; margin-top: -30px; z-index: 10; filter: drop-shadow(0 2px 5px rgba(0,0,0,0.15));
+        .wheel-wrapper { position: relative; width: 360px; height: 360px; margin: 40px auto; }
+        
+        /* 关键修改：Canvas 初始状态 */
+        #canvas { 
+            width: 100%; height: 100%; 
+            transition: transform 6.5s cubic-bezier(0.1, 0, 0, 1); 
+            transform: rotate(-90deg); /* 让特等奖初始对准正上方 */
+        }
+
+        /* 关键修改：指针向下指 */
+        .pointer-box {
+            position: absolute;
+            top: -35px; /* 悬浮在转盘上方 */
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 100;
+            width: 50px;
+            filter: drop-shadow(0 3px 5px rgba(0,0,0,0.2));
         }
         
         .spin-btn { 
             background: linear-gradient(135deg, #00c9a7, #008f7a); color: white; border: none; 
             padding: 16px 60px; font-size: 22px; font-weight: bold; border-radius: 60px; 
-            cursor: pointer; margin-top: 25px; box-shadow: 0 5px 15px rgba(0, 143, 122, 0.3);
+            cursor: pointer; margin-top: 10px; box-shadow: 0 5px 15px rgba(0, 143, 122, 0.3);
         }
-        .spin-btn:active { transform: scale(0.96); }
-        .spin-btn:disabled { background: #dcdcdc; box-shadow: none; cursor: not-allowed; }
+        .spin-btn:disabled { background: #dcdcdc; box-shadow: none; }
         
-        .info { text-align: left; font-size: 14px; color: #666; margin-top: 25px; background: #fdfdfd; padding: 18px; border-radius: 14px; border: 1px solid #f0f0f0;}
-        h2 { color: #008f7a; margin-bottom: 0; font-size: 26px; }
-        #chance-text { color: #555; font-weight: bold; margin-top: 5px; }
+        .info { text-align: left; font-size: 14px; color: #666; margin-top: 25px; background: #f9f9f9; padding: 18px; border-radius: 14px; line-height: 1.8;}
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>暨南文创 · 幸运转盘</h2>
-    <p id="chance-text">🎁 必中好礼！剩余次数：1</p>
+    <h2 style="color:#008f7a;">暨南文创 · 幸运转盘</h2>
+    <p id="chance-text">🎁 剩余抽奖次数：1</p>
 
     <div class="wheel-wrapper">
-        <svg class="pointer" viewBox="0 0 40 50">
-            <path d="M20 0 L40 40 L20 35 L0 40 Z" fill="#e74c3c"/>
-            <circle cx="20" cy="35" r="5" fill="#fff"/>
-        </svg>
+        <div class="pointer-box">
+            <svg viewBox="0 0 40 50" width="50" height="60">
+                <path d="M0 0 L40 0 L20 45 Z" fill="#e74c3c"/> <circle cx="20" cy="5" r="4" fill="#fff"/>
+            </svg>
+        </div>
         <canvas id="canvas" width="400" height="400"></canvas>
     </div>
 
-    <button class="spin-btn" id="spin-btn" onclick="startSpin()">立即抽奖</button>
+    <button class="spin-btn" id="spin-btn" onclick="startSpin()">开始抽奖</button>
 
     <div class="info">
-        <strong>🎁 奖池清单（百分百中奖）：</strong>
-        <div style="margin-top:10px; line-height: 1.8;">
-            • <b style="color:#e74c3c">特等奖(15份)</b>：暨南文创定制品<br>
-            • <b style="color:#f39c12">一等奖(100份)</b>：电脑包、高质感雨伞<br>
-            • <b style="color:#2ecc71">二等奖(200份)</b>：鼠标垫、便携小风扇<br>
-            • <b style="color:#1abc9c">三等奖(300份)</b>：束口袋、运动毛巾、礼包
-        </div>
+        <strong>🎁 奖池清单：</strong><br>
+        • <b style="color:#e74c3c">特等奖</b>：暨南文创定制品<br>
+        • <b style="color:#f39c12">一等奖</b>：电脑包、雨伞<br>
+        • <b style="color:#2ecc71">二等奖</b>：鼠标垫、小风扇<br>
+        • <b style="color:#1abc9c">三等奖</b>：束口袋、运动毛巾
     </div>
 </div>
 
@@ -60,103 +68,72 @@
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
     const btn = document.getElementById('spin-btn');
-    const chanceText = document.getElementById('chance-text');
 
-    // 核心物理角度映射 (像素级图像分析结果, 3点钟为0度)
+    // 物理扇区角度定义 (以3点钟为0度)
     const prizes = [
-        { name: "特等奖", color: "#ee5253", prob: 0.03, startDeg: 0, endDeg: 10 },    // 占一小块 (10度)
-        { name: "一等奖", color: "#f39c12", prob: 0.15, startDeg: 10, endDeg: 65 },   // 占中等块 (55度)
-        { name: "二等奖", color: "#aadd44", prob: 0.32, startDeg: 65, endDeg: 180 },  // 占大块 (115度)
-        { name: "三等奖", color: "#1abc9c", prob: 0.50, startDeg: 180, endDeg: 360 }  // 占最大块 (180度)
+        { name: "特等奖", color: "#ee5253", prob: 0.03, startDeg: 0, endDeg: 10 },
+        { name: "一等奖", color: "#f39c12", prob: 0.15, startDeg: 10, endDeg: 65 },
+        { name: "二等奖", color: "#aadd44", prob: 0.32, startDeg: 65, endDeg: 180 },
+        { name: "三等奖", color: "#1abc9c", prob: 0.50, startDeg: 180, endDeg: 360 }
     ];
 
     let currentRotation = 0;
-    let isSpinning = false;
 
-    // 限制一人一次
-    if (localStorage.getItem('jn_v4_spun')) {
+    if (localStorage.getItem('jn_v5_spun')) {
         btn.disabled = true;
-        btn.innerText = "已领取奖品";
-        chanceText.innerText = "您已完成抽奖，请凭截图兑奖";
+        btn.innerText = "已参加活动";
     }
 
-    // 绘制符合新物理布局的转盘
     function drawWheel() {
         ctx.textAlign = "center";
-        ctx.font = "bold 16px sans-serif";
-        ctx.lineWidth = 1;
-        ctx.strokeStyle = "rgba(255,255,255,0.3)";
-
-        prizes.forEach((prize, i) => {
+        ctx.font = "bold 18px sans-serif";
+        prizes.forEach((prize) => {
             const startRad = (prize.startDeg * Math.PI) / 180;
             const endRad = (prize.endDeg * Math.PI) / 180;
-            
             ctx.beginPath();
             ctx.fillStyle = prize.color;
             ctx.moveTo(200, 200);
             ctx.arc(200, 200, 200, startRad, endRad);
             ctx.fill();
-            ctx.stroke();
             
-            // 绘制文字 (位置微调)
             ctx.save();
             ctx.fillStyle = "#fff";
             ctx.translate(200, 200);
-            const midAngleRad = (startRad + endRad) / 2;
-            ctx.rotate(midAngleRad);
-            ctx.fillText(prize.name, 120, 5);
+            ctx.rotate((startRad + endRad) / 2);
+            ctx.fillText(prize.name, 130, 8);
             ctx.restore();
         });
     }
 
     function startSpin() {
-        if (isSpinning) return;
-        isSpinning = true;
         btn.disabled = true;
-
         const random = Math.random();
-        let cumulativeProb = 0;
-        let winIndex = 3; // 默认为三等奖，防止意外
+        let cum = 0;
+        let winIdx = 3;
 
-        // 1. 核心概率计算 (决定中奖结果)
         for (let i = 0; i < prizes.length; i++) {
-            cumulativeProb += prizes[i].prob;
-            if (random <= cumulativeProb) {
-                winIndex = i;
-                break;
-            }
+            cum += prizes[i].prob;
+            if (random <= cum) { winIdx = i; break; }
         }
 
-        const prize = prizes[winIndex];
-
-        // 2. 核心数学修正：计算转盘必须旋转的角度 (确保指针必落入物理区间内)
-        // 目标奖项区域在 Canvas 上的物理中间角度 (3点钟为0)
-        const canvasMidDeg = (prize.startDeg + prize.endDeg) / 2;
+        const prize = prizes[winIdx];
+        const midDeg = (prize.startDeg + prize.endDeg) / 2;
         
-        // CSS 旋转角度是相对于 Canvas 初始状态的。
-        // 因为我们在绘制后用 `transform: rotate(-90deg)` 修正了 Canvas，
-        // 所以 12点钟对齐指针。目标是把 `canvasMidDeg` 这个物理点转到 -90度(12点钟)的位置。
-        
-        // 计算目标 CSS 旋转值：(360 - 目标 Canvas 角度) - 90 (初始修正值)
-        const targetCssDeg = (360 - canvasMidDeg) - 90;
-        
-        // 加上多圈旋转，使其看起来更真实
+        // 核心逻辑：把奖项转到正上方（-90度位置）
+        // 旋转角度 = (360 - 目标角度) - 90
+        const targetCssDeg = (360 - midDeg) - 90;
         const totalRotation = currentRotation + 2880 + targetCssDeg; 
         
         currentRotation = totalRotation;
-        canvas.style.transform = `rotate(${totalRotation}deg)`; // CSS 顺时针旋转
+        canvas.style.transform = `rotate(${totalRotation}deg)`;
 
-        // 3. 结果处理
         setTimeout(() => {
-            alert(`🎉 恭喜！你获得了：${prizes[winIndex].name}\n请凭此界面截图到兑奖处领取！`);
-            localStorage.setItem('jn_v4_spun', 'true'); // 标记已抽奖
-            chanceText.innerText = "您已完成抽奖，请凭截图兑奖";
-            isSpinning = false;
-        }, 6800); // 增加旋转时间，显得更刺激
+            alert(`🎉 恭喜获得：${prizes[winIdx].name}！\n请凭截图兑奖。`);
+            localStorage.setItem('jn_v5_spun', 'true');
+        }, 6800);
     }
 
     drawWheel();
 </script>
-
 </body>
 </html>
