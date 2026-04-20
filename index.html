@@ -63,6 +63,7 @@
     const chanceDisplay = document.getElementById('chance-count');
     const unlockArea = document.getElementById('unlock-area');
 
+    // 🚀 请务必确认此网址与你 Cloudflare Worker 的路由一致
     const BACKEND_URL = 'https://jn-lottery-api-arzjhjubux.cn-hangzhou.fcapp.run'; 
 
     const prizeConfig = [
@@ -73,40 +74,45 @@
     ];
 
     let currentRotation = 0;
-    // 从本地存储读取剩余次数，如果没有则默认为 1 次（第一次免费）
-    let savedChances = localStorage.getItem('jnu_remaining_chances');
-    let chances = savedChances !== null ? parseInt(savedChances) : 1;
+    // 状态管理
+    let firstDone = localStorage.getItem('jnu_first_done') === 'true';
+    let secondActive = localStorage.getItem('jnu_second_active') === 'true';
+    let allDone = localStorage.getItem('jnu_all_done') === 'true';
 
     // 初始化页面状态
     function init() {
-        chanceDisplay.innerText = chances;
-        unlockArea.style.display = 'block'; // 永久显示兑换入口
-        
-        if (chances <= 0) {
+        if (allDone) {
             btn.disabled = true;
-            btn.innerText = "次数已用完，请兑换";
-        } else {
+            btn.innerText = "已参加活动";
+            chanceDisplay.innerText = "0";
+            unlockArea.style.display = 'none';
+        } else if (firstDone && !secondActive) {
+            btn.disabled = true;
+            btn.innerText = "次数已用完";
+            chanceDisplay.innerText = "0";
+            unlockArea.style.display = 'block'; // 显示激活链接
+        } else if (firstDone && secondActive) {
             btn.disabled = false;
-            btn.innerText = "开始抽奖";
+            btn.innerText = "第二次抽奖";
+            chanceDisplay.innerText = "1";
+            unlockArea.style.display = 'none';
         }
     }
 
-    // 增加次数逻辑 (无限充值)
-    function activateMoreChance() {
-        const code = prompt("请找工作人员输入兑换码以增加抽奖次数：");
+    // 激活二抽逻辑
+    function activateSecondChance() {
+        const code = prompt("请输入点赞平台发放的兑换码：");
+        // 你可以把这里的 "JNU888" 改成你在天天评选设置的那个码
         if (code === "JNU888") { 
-            chances += 1; // 每输入一次加 1 次
-            localStorage.setItem('jnu_remaining_chances', chances);
-            alert("兑换成功！当前剩余次数：" + chances);
-            init(); // 刷新按钮状态
+            localStorage.setItem('jnu_second_active', 'true');
+            alert("解锁成功！获得第二次抽奖机会。");
+            location.reload();
         } else {
-            alert("兑换码无效。");
+            alert("兑换码无效，请确认点赞是否达标。");
         }
     }
 
     async function handleSpin() {
-        if (chances <= 0) return;
-
         btn.disabled = true;
         btn.innerText = "正在请求奖池...";
 
@@ -116,15 +122,17 @@
 
             if (data.error) {
                 alert("奖品已全部发完，下次早点来哦！");
-                btn.innerText = "活动结束";
                 return;
             }
 
-            // 扣减次数
-            chances -= 1;
-            localStorage.setItem('jnu_remaining_chances', chances);
-            chanceDisplay.innerText = chances;
+            // 抽奖逻辑更新
+            if (secondActive) {
+                localStorage.setItem('jnu_all_done', 'true');
+            } else {
+                localStorage.setItem('jnu_first_done', 'true');
+            }
 
+            chanceDisplay.innerText = "0";
             const prize = prizeConfig.find(p => p.name === data.prize);
             const midDeg = (prize.startDeg + prize.endDeg) / 2;
             const targetCssDeg = (360 - midDeg) - 90;
@@ -133,8 +141,9 @@
             canvas.style.transform = `rotate(${finalRotation}deg)`;
 
             setTimeout(() => {
-                alert(`🎉 恭喜！你抽中了【${data.prize}】\n当前剩余次数：${chances}`);
-                init(); // 抽完后根据剩余次数决定按钮状态
+                alert(`🎉 恭喜！你抽中了【${data.prize}】\n请凭截图去兑奖处领取。`);
+                btn.innerText = "抽奖完成";
+                if (!secondActive) unlockArea.style.display = 'block';
             }, 6500);
 
         } catch (e) {
@@ -155,3 +164,6 @@
 
     draw();
     init();
+</script>
+</body>
+</html>
