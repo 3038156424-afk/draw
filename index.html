@@ -20,8 +20,8 @@
         .spin-btn { background: linear-gradient(135deg, #00c9a7, var(--primary-color)); color: white; border: none; padding: 16px 60px; font-size: 20px; font-weight: bold; border-radius: 50px; cursor: pointer; transition: 0.3s; box-shadow: 0 6px 20px rgba(0, 143, 122, 0.3); width: 100%; }
         .spin-btn:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; }
         
-        /* 二抽解锁区 */
-        #unlock-area { margin-top: 20px; display: none; padding: 10px; border-top: 1px dashed #ddd; }
+        /* 兑换区 */
+        #unlock-area { margin-top: 20px; padding: 15px; border-top: 1px dashed #ddd; }
         .unlock-link { color: var(--primary-color); font-size: 14px; font-weight: bold; text-decoration: underline; cursor: pointer; }
 
         /* 奖品明细展示 */
@@ -33,7 +33,7 @@
 
 <div class="container">
     <h2 style="color: var(--primary-color); margin-top: 0;">暨南文创 · 幸运转盘</h2>
-    <div class="status-bar">🎁 剩余抽奖次数：<span id="chance-count">1</span></div>
+    <div class="status-bar">🎁 剩余抽奖次数：<span id="chance-count">0</span></div>
 
     <div class="wheel-wrapper">
         <div class="pointer-box">
@@ -45,14 +45,14 @@
     <button class="spin-btn" id="spin-btn" onclick="handleSpin()">开始抽奖</button>
 
     <div id="unlock-area">
-        <span class="unlock-link" onclick="activateSecondChance()">点赞达标？输入兑换码激活二抽</span>
+        <span class="unlock-link" onclick="activateMoreChance()">点赞达标？输入兑换码增加次数</span>
     </div>
 
     <div class="prize-list">
         <div style="color:#ee5253"><b>特等奖</b> 暨南文创</div>
         <div style="color:#f39c12"><b>一等奖</b> 电脑包、雨伞</div>
         <div style="color:#82cc17"><b>二等奖</b> 鼠标垫、小风扇、笔袋</div>
-        <div style="color:#1abc9c"><b>三等奖</b> 束口袋、运动毛巾、签字笔、文韵续赏礼包</div>
+        <div style="color:#1abc9c"><b>三等奖</b> 束口袋、运动毛巾、签字笔</div>
     </div>
 </div>
 
@@ -61,9 +61,8 @@
     const ctx = canvas.getContext('2d');
     const btn = document.getElementById('spin-btn');
     const chanceDisplay = document.getElementById('chance-count');
-    const unlockArea = document.getElementById('unlock-area');
 
-    // 🚀 请务必确认此网址与你 Cloudflare Worker 的路由一致
+    // 🚀 这里是你阿里云函数计算的公网地址
     const BACKEND_URL = 'https://jn-lottery-api-arzjhjubux.cn-hangzhou.fcapp.run'; 
 
     const prizeConfig = [
@@ -74,65 +73,59 @@
     ];
 
     let currentRotation = 0;
-    // 状态管理
-    let firstDone = localStorage.getItem('jnu_first_done') === 'true';
-    let secondActive = localStorage.getItem('jnu_second_active') === 'true';
-    let allDone = localStorage.getItem('jnu_all_done') === 'true';
+    
+    // 从本地读取次数，如果没有记录则默认为 1 次
+    let saved = localStorage.getItem('jnu_remaining_chances');
+    let chances = saved !== null ? parseInt(saved) : 1;
 
-    // 初始化页面状态
+    // 初始化显示
     function init() {
-        if (allDone) {
+        chanceDisplay.innerText = chances;
+        if (chances <= 0) {
             btn.disabled = true;
-            btn.innerText = "已参加活动";
-            chanceDisplay.innerText = "0";
-            unlockArea.style.display = 'none';
-        } else if (firstDone && !secondActive) {
-            btn.disabled = true;
-            btn.innerText = "次数已用完";
-            chanceDisplay.innerText = "0";
-            unlockArea.style.display = 'block'; // 显示激活链接
-        } else if (firstDone && secondActive) {
+            btn.innerText = "次数已用完，请兑换";
+        } else {
             btn.disabled = false;
-            btn.innerText = "第二次抽奖";
-            chanceDisplay.innerText = "1";
-            unlockArea.style.display = 'none';
+            btn.innerText = "开始抽奖";
         }
     }
 
-    // 激活二抽逻辑
-    function activateSecondChance() {
+    // 无限充值逻辑
+    function activateMoreChance() {
         const code = prompt("请输入点赞平台发放的兑换码：");
-        // 你可以把这里的 "JNU888" 改成你在天天评选设置的那个码
         if (code === "JNU888") { 
-            localStorage.setItem('jnu_second_active', 'true');
-            alert("解锁成功！获得第二次抽奖机会。");
-            location.reload();
+            chances += 1;
+            localStorage.setItem('jnu_remaining_chances', chances);
+            alert("解锁成功！当前剩余次数：" + chances);
+            init();
         } else {
-            alert("兑换码无效，请确认点赞是否达标。");
+            alert("兑换码无效。");
         }
     }
 
     async function handleSpin() {
+        if (chances <= 0) return;
+        
         btn.disabled = true;
         btn.innerText = "正在请求奖池...";
 
         try {
+            // 注意：这里必须和阿里云后端一致，发送 POST 请求减库存
             const response = await fetch(BACKEND_URL, { method: 'POST' });
             const data = await response.json();
 
             if (data.error) {
                 alert("奖品已全部发完，下次早点来哦！");
+                btn.innerText = "活动已结束";
                 return;
             }
 
-            // 抽奖逻辑更新
-            if (secondActive) {
-                localStorage.setItem('jnu_all_done', 'true');
-            } else {
-                localStorage.setItem('jnu_first_done', 'true');
-            }
+            // 扣除本地次数并保存
+            chances -= 1;
+            localStorage.setItem('jnu_remaining_chances', chances);
+            chanceDisplay.innerText = chances;
 
-            chanceDisplay.innerText = "0";
+            // 转动逻辑
             const prize = prizeConfig.find(p => p.name === data.prize);
             const midDeg = (prize.startDeg + prize.endDeg) / 2;
             const targetCssDeg = (360 - midDeg) - 90;
@@ -142,12 +135,11 @@
 
             setTimeout(() => {
                 alert(`🎉 恭喜！你抽中了【${data.prize}】\n请凭截图去兑奖处领取。`);
-                btn.innerText = "抽奖完成";
-                if (!secondActive) unlockArea.style.display = 'block';
+                init(); // 恢复按钮状态或提示充值
             }, 6500);
 
         } catch (e) {
-            alert("网络繁忙，请稍后再试");
+            alert("网络繁忙或接口未部署成功");
             btn.disabled = false;
             btn.innerText = "重试";
         }
