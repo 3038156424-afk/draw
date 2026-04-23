@@ -103,7 +103,7 @@
 
     // 无限充值逻辑
     function activateMoreChance() {
-        const code = prompt("请输入兑换码（JNU888）：");
+        const code = prompt("请输入兑换码：");
         if (code === "JNU888") { 
             chances += 1;
             localStorage.setItem('jnu_remaining_chances', chances);
