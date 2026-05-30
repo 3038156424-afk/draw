@@ -26,7 +26,8 @@
 
         /* 奖品明细展示 */
         .prize-list { text-align: left; margin-top: 25px; padding: 15px; background: #fcfcfc; border-radius: 12px; border: 1px solid #eee; font-size: 12px; line-height: 1.6; }
-        .prize-item b { display: inline-block; width: 45px; }
+        .prize-item { margin-bottom: 6px; }
+        .prize-item b { display: inline-block; width: 50px; }
     </style>
 </head>
 <body>
@@ -49,10 +50,10 @@
     </div>
 
     <div class="prize-list">
-        <div style="color:#ee5253"><b>特等奖</b> 积木冰箱贴，小熊</div>
-        <div style="color:#f39c12"><b>一等奖</b> 钥匙扣，特色鼠标垫，雨伞</div>
-        <div style="color:#82cc17"><b>二等奖</b> 鼠标垫，笔袋，风扇</div>
-        <div style="color:#1abc9c"><b>三等奖</b> 玻璃杯，运动毛巾，文韵续赏礼包</div>
+        <div class="prize-item" style="color:#ee5253"><b>特等奖</b> 积木冰箱贴、小熊</div>
+        <div class="prize-item" style="color:#f39c12"><b>一等奖</b> 钥匙扣、特色鼠标垫、雨伞</div>
+        <div class="prize-item" style="color:#82cc17"><b>二等奖</b> 鼠标垫、笔袋、风扇</div>
+        <div class="prize-item" style="color:#1abc9c"><b>三等奖</b> 玻璃杯、运动毛巾、文韵续赏礼包</div>
     </div>
 </div>
 
@@ -62,35 +63,36 @@
     const btn = document.getElementById('spin-btn');
     const chanceDisplay = document.getElementById('chance-count');
 
-    // 🚀 请务必确认此网址与你阿里云函数计算的公网地址一致
+    // 🚀 保持你原有的公网地址
     const BACKEND_URL = 'https://jn-lottery-api-arzjhjubux.cn-hangzhou.fcapp.run'; 
 
+    // 🏆 根据分配表比例精确计算的饼图角度划分 (特等奖33度，一等奖65度，二等奖98度，三等奖164度)
     const prizeConfig = [
-        { name: "特等奖", color: "#ee5253", startDeg: 0,   endDeg: 10 },
-        { name: "一等奖", color: "#f39c12", startDeg: 10,  endDeg: 65 },
-        { name: "二等奖", color: "#aadd44", startDeg: 65,  endDeg: 180 },
-        { name: "三等奖", color: "#1abc9c", startDeg: 180, endDeg: 360 }
+        { name: "特等奖", color: "#ee5253", startDeg: 0,   endDeg: 33 },
+        { name: "一等奖", color: "#f39c12", startDeg: 33,  endDeg: 98 },
+        { name: "二等奖", color: "#82cc17", startDeg: 98,  endDeg: 196 },
+        { name: "三等奖", color: "#1abc9c", startDeg: 196, endDeg: 360 }
     ];
 
     let currentRotation = 0;
     let saved = localStorage.getItem('jnu_remaining_chances');
     let chances = saved !== null ? parseInt(saved) : 1;
 
-    // 🎨 **绘制转盘图案的函数**
+    // 🎨 绘制转盘
     function draw() {
+        ctx.clearRect(0, 0, 400, 400);
         ctx.textAlign = "center"; ctx.font = "bold 17px sans-serif";
         prizeConfig.forEach(p => {
             const s = (p.startDeg * Math.PI)/180, e = (p.endDeg * Math.PI)/180;
             ctx.beginPath(); ctx.fillStyle = p.color; ctx.moveTo(200, 200); ctx.arc(200, 200, 200, s, e); ctx.fill();
+            ctx.strokeStyle = "rgba(255,255,255,0.2)"; ctx.lineWidth = 2; ctx.stroke();
+            
             ctx.save(); ctx.fillStyle = "#fff"; ctx.translate(200, 200); ctx.rotate((s+e)/2); ctx.fillText(p.name, 130, 8); ctx.restore();
         });
     }
 
-    // 初始化显示
     function init() {
-        // **关键修正：初始化时必须优先绘制图案**
         draw(); 
-        
         chanceDisplay.innerText = chances;
         if (chances <= 0) {
             btn.disabled = true;
@@ -101,14 +103,13 @@
         }
     }
 
-    // 无限充值逻辑
     function activateMoreChance() {
         const code = prompt("请输入兑换码：");
         if (code === "JNU888") { 
             chances += 1;
             localStorage.setItem('jnu_remaining_chances', chances);
             alert("充值成功！当前剩余次数：" + chances);
-            init(); // 刷新按钮状态
+            init(); 
         } else {
             alert("兑换码无效。");
         }
@@ -125,7 +126,7 @@
             const data = await response.json();
 
             if (data.error) {
-                alert("奖品已全部发完，下次早点来哦！");
+                alert(data.error);
                 btn.innerText = "活动已结束";
                 return;
             }
@@ -135,7 +136,7 @@
             localStorage.setItem('jnu_remaining_chances', chances);
             chanceDisplay.innerText = chances;
 
-            // 转动逻辑
+            // 精确计算旋转度数，防止指针错位
             const prize = prizeConfig.find(p => p.name === data.prize);
             const midDeg = (prize.startDeg + prize.endDeg) / 2;
             const targetCssDeg = (360 - midDeg) - 90;
@@ -144,18 +145,17 @@
             canvas.style.transform = `rotate(${finalRotation}deg)`;
 
             setTimeout(() => {
-                alert(`🎉 恭喜！你抽中了【${data.prize}】\n当前剩余次数：${chances}`);
-                init(); // 恢复状态
+                alert(`🎉 恭喜！你抽中了【${data.prize}】\n请凭此截图至活动现场兑奖！`);
+                init(); 
             }, 6500);
 
         } catch (e) {
-            alert("网络繁忙或接口未部署成功");
+            alert("系统繁忙，请稍后再试");
             btn.disabled = false;
             btn.innerText = "重试";
         }
     }
 
-    // 🚩 **入口点：初始化页面**
     init();
 </script>
 </body>
